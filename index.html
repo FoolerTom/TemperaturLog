@@ -6,7 +6,24 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { background:#111; color:white; text-align:center; font-family:Arial; }
-    canvas { max-width: 90%; margin: 20px auto; }
+    
+    canvas {
+      max-width: 90%;
+      height: 300px !important;
+      margin: 20px auto;
+    }
+    
+  scales: {
+    x: {
+      ticks: {
+        color: "white",
+        autoSkip: true,
+        maxTicksLimit: 6  
+      }
+    }
+  }
+
+
   </style>
 </head>
 <body>
@@ -53,7 +70,7 @@ async function loadData()
     const diff = (now - t) / 1000 / 60;
 
     if (diff < 120) {
-      labels2h.push(t.toLocaleTimeString());
+      labels2h.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       if (d.id === "dial1") {
         d1_2h.push(d.amb);
         d2_2h.push(null);   
@@ -64,7 +81,7 @@ async function loadData()
     }
 
     if (diff < 2880) {
-      labels48h.push(t.toLocaleString());
+      labels48h.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       if (d.id === "dial1") {
         d1_48h.push(d.amb);
         d2_48h.push(null);
@@ -118,6 +135,7 @@ function drawChart(id, labels, d1, d2)
 
 setInterval(loadData, 10000);
 loadData();
+console.log(diff);
 
 </script>
 </body>
