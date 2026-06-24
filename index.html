@@ -25,7 +25,7 @@
 const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps?select=*";
 const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
 
-let chart2h, chart48h;
+let charts = {}; 
 
 async function loadData() 
 {
@@ -40,40 +40,50 @@ async function loadData()
 
   const now = new Date();
 
-  let d1_2h = [], d2_2h = [], labels2h = [];
-  let d1_48h = [], d2_48h = [], labels48h = [];
+  let labels2h = [];
+  let d1_2h = [];
+  let d2_2h = [];
+
+  let labels48h = [];
+  let d1_48h = [];
+  let d2_48h = [];
 
   data.forEach(d => {
     const t = new Date(d.updated_at);
-    const diff = (now - t) / 1000 / 60; // Minuten
+    const diff = (now - t) / 1000 / 60;
 
-    if (diff < 120)
-    {
+    if (diff < 120) {
       labels2h.push(t.toLocaleTimeString());
-      if (d.id === "dial1") d1_2h.push(d.amb);
-      if (d.id === "dial2") d2_2h.push(d.amb);
+      if (d.id === "dial1") {
+        d1_2h.push(d.amb);
+        d2_2h.push(null);   
+      } else {
+        d1_2h.push(null);
+        d2_2h.push(d.amb);
+      }
     }
 
-    if (diff < 2880)
-    {
+    if (diff < 2880) {
       labels48h.push(t.toLocaleString());
-      if (d.id === "dial1") d1_48h.push(d.amb);
-      if (d.id === "dial2") d2_48h.push(d.amb);
+      if (d.id === "dial1") {
+        d1_48h.push(d.amb);
+        d2_48h.push(null);
+      } else {
+        d1_48h.push(null);
+        d2_48h.push(d.amb);
+      }
     }
   });
 
-  drawChart("chart2h", labels2h, d1_2h, d2_2h, "2h");
-  drawChart("chart48h", labels48h, d1_48h, d2_48h, "48h");
+  drawChart("chart2h", labels2h, d1_2h, d2_2h);
+  drawChart("chart48h", labels48h, d1_48h, d2_48h);
 }
-
-function drawChart(id, labels, d1, d2, title)
-{
-  
-let charts = {};   // global!
 
 function drawChart(id, labels, d1, d2)
 {
-  if (charts[id]) charts[id].destroy();
+  if (charts[id] && typeof charts[id].destroy === "function") {
+    charts[id].destroy();
+  }
 
   charts[id] = new Chart(document.getElementById(id), {
     type: "line",
@@ -84,24 +94,31 @@ function drawChart(id, labels, d1, d2)
           label: "Dial 1",
           data: d1,
           borderColor: "red",
-          fill: false
+          spanGaps: true
         },
         {
           label: "Dial 2",
           data: d2,
           borderColor: "cyan",
-          fill: false
+          spanGaps: true
         }
       ]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: "white" } }
+      },
+      scales: {
+        x: { ticks: { color: "white" } },
+        y: { ticks: { color: "white" } }
+      }
     }
   });
 }
-
 
 setInterval(loadData, 10000);
 loadData();
 
 </script>
-
 </body>
 </html>
