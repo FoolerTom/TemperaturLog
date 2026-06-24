@@ -1,34 +1,33 @@
-
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Temperatur Monitor</title>
+  <title>Temperatur Verlauf</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial; background:#111; color:white; text-align:center; }
-    .card { background:#222; padding:20px; margin:20px auto; width:300px; border-radius:20px; }
+    body { background:#111; color:white; text-align:center; font-family:Arial; }
+    canvas { max-width: 90%; margin: 20px auto; }
   </style>
 </head>
 <body>
 
-<h1>Live Temperaturen</h1>
+<h1>Temperatur Verlauf</h1>
 
-<div class="card">
-  <h2>Dial 1</h2>
-  <p id="d1">--</p>
-</div>
+<h2>Letzte 2 Stunden</h2>
+<canvas id="chart2h"></canvas>
 
-<div class="card">
-  <h2>Dial 2</h2>
-  <p id="d2">--</p>
-</div>
+<h2>Letzte 48 Stunden</h2>
+<canvas id="chart48h"></canvas>
 
 <script>
 
 const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps?select=*";
 const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
 
-async function loadData() {
+let chart2h, chart48h;
+
+async function loadData() 
+{
   const res = await fetch(url, {
     headers: {
       apikey: apiKey,
@@ -38,16 +37,71 @@ async function loadData() {
 
   const data = await res.json();
 
-  data.forEach(d => {
-    if(d.id === "dial1")
-      document.getElementById("d1").innerText = `${d.obj}°C | ${d.amb}°C`;
+  const now = new Date();
 
-    if(d.id === "dial2")
-      document.getElementById("d2").innerText = `${d.obj}°C | ${d.amb}°C`;
+  let d1_2h = [], d2_2h = [], labels2h = [];
+  let d1_48h = [], d2_48h = [], labels48h = [];
+
+  data.forEach(d => {
+    const t = new Date(d.updated_at);
+    const diff = (now - t) / 1000 / 60; // Minuten
+
+    if (diff < 120)
+    {
+      labels2h.push(t.toLocaleTimeString());
+      if (d.id === "dial1") d1_2h.push(d.amb);
+      if (d.id === "dial2") d2_2h.push(d.amb);
+    }
+
+    if (diff < 2880)
+    {
+      labels48h.push(t.toLocaleString());
+      if (d.id === "dial1") d1_48h.push(d.amb);
+      if (d.id === "dial2") d2_48h.push(d.amb);
+    }
+  });
+
+  drawChart("chart2h", labels2h, d1_2h, d2_2h, "2h");
+  drawChart("chart48h", labels48h, d1_48h, d2_48h, "48h");
+}
+
+function drawChart(id, labels, d1, d2, title)
+{
+  if (window[id]) window[id].destroy();
+
+  window[id] = new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "Dial 1",
+          data: d1,
+          borderColor: "red",
+          fill: false
+        },
+        {
+          label: "Dial 2",
+          data: d2,
+          borderColor: "cyan",
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: "white" } }
+      },
+      scales: {
+        x: { ticks: { color: "white" } },
+        y: { ticks: { color: "white" } }
+      }
+    }
   });
 }
 
-setInterval(loadData, 5000);
+setInterval(loadData, 10000);
 loadData();
 
 </script>
