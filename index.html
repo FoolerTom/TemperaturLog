@@ -11,6 +11,7 @@
 </head>
 <body>
 
+
 <h1>Temperatur Verlauf</h1>
 
 <h2>Letzte 2 Stunden</h2>
@@ -67,9 +68,14 @@ async function loadData()
 
 function drawChart(id, labels, d1, d2, title)
 {
-  if (window[id]) window[id].destroy();
+  
+let charts = {};   // global!
 
-  window[id] = new Chart(document.getElementById(id), {
+function drawChart(id, labels, d1, d2)
+{
+  if (charts[id]) charts[id].destroy();
+
+  charts[id] = new Chart(document.getElementById(id), {
     type: "line",
     data: {
       labels: labels,
@@ -87,19 +93,10 @@ function drawChart(id, labels, d1, d2, title)
           fill: false
         }
       ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { labels: { color: "white" } }
-      },
-      scales: {
-        x: { ticks: { color: "white" } },
-        y: { ticks: { color: "white" } }
-      }
     }
   });
 }
+
 
 setInterval(loadData, 10000);
 loadData();
