@@ -30,7 +30,7 @@
 
 <body>
 
-<h1>🌡️ Temperatur Verlauf</h1>
+<h1>Temperatur Verlauf</h1>
 
 <h2>Letzte 2 Stunden</h2>
 <canvas id="chart2h"></canvas>
@@ -69,6 +69,7 @@ async function loadData()
       const diff = (now - t.getTime()) / 1000 / 60;
 
       const key = t.getTime();
+      console.log(diff);
 
       if (diff < 120) {
         if (!map2h[key]) map2h[key] = { t: t };
