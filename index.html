@@ -40,7 +40,7 @@
 
 <script>
 
-const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps?select=*";
+const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local?select=*";
 const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
 let charts = {}; 
 
@@ -65,7 +65,7 @@ async function loadData()
     data.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
 
     data.forEach(d => {
-      const t = new Date(d.updated_at);
+      const t = new Date(d.local_time);
       const diff = (now - t.getTime()) / 1000 / 60;
 
       const key = t.getTime();
