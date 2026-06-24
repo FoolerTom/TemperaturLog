@@ -98,7 +98,7 @@ async function loadData()
     let values48h = Object.values(map48h);
 
     let labels48h = values48h.map(e =>
-      e.t.toLocaleString([], { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+      e.t.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
     );
 
     let d1_48h = values48h.map(e => e.d1 ?? null);
@@ -125,7 +125,7 @@ function drawChart(id, labels, d1, d2)
       labels: labels,
       datasets: [
         {
-          label: "Dial 1",
+          //label: "Dial 1",
           data: d1,
           borderColor: "red",
           borderWidth: 2,
@@ -133,7 +133,7 @@ function drawChart(id, labels, d1, d2)
           spanGaps: true
         },
         {
-          label: "Dial 2",
+          //label: "Dial 2",
           data: d2,
           borderColor: "cyan",
           borderWidth: 2,
