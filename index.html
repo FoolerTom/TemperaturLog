@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Temperatur Monitor</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #111;
+      color: white;
+      text-align: center;
+    }
+    .card {
+      background: #222;
+      padding: 20px;
+      margin: 20px auto;
+      width: 300px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    h1 {
+      margin: 20px;
+    }
+    .temp {
+      font-size: 2em;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🌡️ Temperatur Dashboard</h1>
+
+<div class="card" id="dial1">
+  <h2>Dial 1</h2>
+  <div class="temp" id="obj1">-- °C</div>
+  <div id="amb1">Amb: -- °C</div>
+</div>
+
+<div class="card" id="dial2">
+  <h2>Dial 2</h2>
+  <div class="temp" id="obj2">-- °C</div>
+  <div id="amb2">Amb: -- °C</div>
+</div>
+
+<script>
+
+async function loadData() {
+  try {
+    // 👉 HIER DEINE API URL EINTRAGEN
+    const response = await fetch("https://your-api-url.com/data.json");
+
+    const data = await response.json();
+
+    if (data.dial1) {
+      document.getElementById("obj1").innerText = data.dial1.obj + " °C";
+      document.getElementById("amb1").innerText = "Amb: " + data.dial1.amb + " °C";
+    }
+
+    if (data.dial2) {
+      document.getElementById("obj2").innerText = data.dial2.obj + " °C";
+      document.getElementById("amb2").innerText = "Amb: " + data.dial2.amb + " °C";
+    }
+
+  } catch (e) {
+    console.log("Fehler beim Laden:", e);
+  }
+}
+
+// alle 5 Sekunden aktualisieren
+setInterval(loadData, 5000);
+
+// sofort laden
+loadData();
+
+</script>
+
+</body>
+</html>
