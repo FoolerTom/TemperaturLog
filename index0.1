@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Temperatur Verlauf</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      background: #111;
+      color: white;
+      text-align: center;
+      font-family: Arial;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    canvas {
+      width: 95% !important;
+      height: 40vh !important;
+      margin: 20px auto;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Temperatur Verlauf!</h1>
+
+<h2>Letzte 2 Stunden</h2>
+<canvas id="chart2h"></canvas>
+
+<h2>Letzte 48 Stunden</h2>
+<canvas id="chart48h"></canvas>
+
+<script>
+
+const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local?select=*";
+const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
+let charts = {}; 
+
+async function loadData() 
+{
+  try {
+    const res = await fetch(url, {
+      headers: {
+        apikey: apiKey,
+        Authorization: "Bearer " + apiKey
+      }
+    });
+
+    const data = await res.json();
+
+    const now = Date.now();
+
+    let map2h = {};
+    let map48h = {};
+
+    // Daten nach Zeit sortieren
+    data.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
+
+    data.forEach(d => {
+      const t = new Date(d.local_time);
+      const diff = (now - t.getTime()) / 1000 / 60;
+
+      const key = t.getTime();
+      console.log(diff);
+
+      if (diff < 120) {
+        if (!map2h[key]) map2h[key] = { t: t };
+        if (d.id === "dial1") map2h[key].d1 = d.amb;
+        if (d.id === "dial2") map2h[key].d2 = d.amb;
+      }
+
+      if (diff < 2880) {
+        if (!map48h[key]) map48h[key] = { t: t };
+        if (d.id === "dial1") map48h[key].d1 = d.amb;
+        if (d.id === "dial2") map48h[key].d2 = d.amb;
+      }
+    });
+
+    // ---------- 2h Daten ----------
+    let values2h = Object.values(map2h);
+
+    let labels2h = values2h.map(e =>
+      e.t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
+
+    let d1_2h = values2h.map(e => e.d1 ?? null);
+    let d2_2h = values2h.map(e => e.d2 ?? null);
+
+    // ---------- 48h Daten ----------
+    let values48h = Object.values(map48h);
+
+    let labels48h = values48h.map(e =>
+      e.t.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+    );
+
+    let d1_48h = values48h.map(e => e.d1 ?? null);
+    let d2_48h = values48h.map(e => e.d2 ?? null);
+
+    drawChart("chart2h", labels2h, d1_2h, d2_2h);
+    drawChart("chart48h", labels48h, d1_48h, d2_48h);
+
+  } catch (e) {
+    console.log("Fehler:", e);
+  }
+}
+
+// ---------- Chart Funktion ----------
+function drawChart(id, labels, d1, d2)
+{
+  if (charts[id] && typeof charts[id].destroy === "function") {
+    charts[id].destroy();
+  }
+
+  charts[id] = new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "aussen",
+          data: d1,
+          borderColor: "red",
+          borderWidth: 2,
+          pointRadius: 0,
+          spanGaps: true
+        },
+        {
+          label: "innen",
+          data: d2,
+          borderColor: "cyan",
+          borderWidth: 2,
+          pointRadius: 0,
+          spanGaps: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: "white" }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: "white",
+            autoSkip: true,
+            maxTicksLimit: 6  
+          }
+        },
+        y: {
+          ticks: {
+            color: "white"
+          }
+        }
+      }
+    }
+  });
+}
+
+// alle 10 Sekunden aktualisieren
+setInterval(loadData, 10000);
+
+// sofort starten
+loadData();
+
+</script>
+
+</body>
+</html>
