@@ -40,9 +40,31 @@
 
 <script>
 
-const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local?select=*";
+const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local?select=*&order=updated_at.desc&limit=15000";
 const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
 let charts = {}; 
+
+function parseLocalTime(d) {
+  if (!d) return new Date(NaN);
+
+  if (d.local_time) {
+    const parsed = new Date(d.local_time);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+
+    const timeOnly = String(d.local_time).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (timeOnly && d.updated_at) {
+      const baseDate = new Date(d.updated_at);
+      if (!isNaN(baseDate.getTime())) {
+        baseDate.setHours(Number(timeOnly[1]), Number(timeOnly[2]), Number(timeOnly[3] || 0), 0);
+        return baseDate;
+      }
+    }
+  }
+
+  return d.updated_at ? new Date(d.updated_at) : new Date(NaN);
+}
 
 async function loadData() 
 {
@@ -61,11 +83,12 @@ async function loadData()
     let map2h = {};
     let map48h = {};
 
-    // Daten nach Zeit sortieren
-    data.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
+    // Daten nach Messzeit sortieren
+    data.sort((a, b) => parseLocalTime(a) - parseLocalTime(b));
 
     data.forEach(d => {
-      const t = new Date(d.local_time);
+      const t = parseLocalTime(d);
+      if (isNaN(t)) return;
       const diff = (now - t.getTime()) / 1000 / 60;
 
       const key = t.getTime();
@@ -85,7 +108,7 @@ async function loadData()
     });
 
     // ---------- 2h Daten ----------
-    let values2h = Object.values(map2h);
+    let values2h = Object.values(map2h).sort((a, b) => a.t - b.t);
 
     let labels2h = values2h.map(e =>
       e.t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -95,7 +118,7 @@ async function loadData()
     let d2_2h = values2h.map(e => e.d2 ?? null);
 
     // ---------- 48h Daten ----------
-    let values48h = Object.values(map48h);
+    let values48h = Object.values(map48h).sort((a, b) => a.t - b.t);
 
     let labels48h = values48h.map(e =>
       e.t.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
