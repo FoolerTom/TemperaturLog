@@ -40,26 +40,65 @@
 
 <script>
 
-const url = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local?select=*&order=updated_at.desc&limit=15000";
+const baseUrl = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local";
 const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
 let charts = {}; 
+const authHeaders = {
+  apikey: apiKey,
+  Authorization: "Bearer " + apiKey
+};
+
+async function fetchAllData() {
+  const pageSize = 1000;
+  let page = 0;
+  let all = [];
+
+  while (true) {
+    const url = `${baseUrl}?select=*&order=updated_at.desc&limit=${pageSize}&offset=${page * pageSize}`;
+    const res = await fetch(url, { headers: authHeaders });
+    if (!res.ok) {
+      throw new Error(`Supabase request failed: ${res.status} ${res.statusText}`);
+    }
+
+    const pageData = await res.json();
+    console.log("Supabase page", page, "rows", pageData.length, "url", url);
+
+    if (!Array.isArray(pageData) || pageData.length === 0) {
+      break;
+    }
+
+    all.push(...pageData);
+    if (pageData.length < pageSize) {
+      break;
+    }
+
+    page += 1;
+    if (page >= 10) {
+      console.log("Reached max pagination pages", page);
+      break;
+    }
+  }
+
+  return all;
+}
 
 function parseLocalTime(d) {
   if (!d) return new Date(NaN);
 
-  if (d.local_time) {
-    const parsed = new Date(d.local_time);
+  const local = String(d.local_time || "").trim();
+  const timeOnly = local.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeOnly && d.updated_at) {
+    const baseDate = new Date(d.updated_at);
+    if (!isNaN(baseDate.getTime())) {
+      baseDate.setHours(Number(timeOnly[1]), Number(timeOnly[2]), Number(timeOnly[3] || 0), 0);
+      return baseDate;
+    }
+  }
+
+  if (local) {
+    const parsed = new Date(local);
     if (!isNaN(parsed.getTime())) {
       return parsed;
-    }
-
-    const timeOnly = String(d.local_time).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    if (timeOnly && d.updated_at) {
-      const baseDate = new Date(d.updated_at);
-      if (!isNaN(baseDate.getTime())) {
-        baseDate.setHours(Number(timeOnly[1]), Number(timeOnly[2]), Number(timeOnly[3] || 0), 0);
-        return baseDate;
-      }
     }
   }
 
@@ -69,14 +108,8 @@ function parseLocalTime(d) {
 async function loadData() 
 {
   try {
-    const res = await fetch(url, {
-      headers: {
-        apikey: apiKey,
-        Authorization: "Bearer " + apiKey
-      }
-    });
-
-    const data = await res.json();
+    const data = await fetchAllData();
+    console.log("Supabase total rows", data.length, "first", data[0]?.local_time, data[0]?.updated_at, "last", data[data.length-1]?.local_time, data[data.length-1]?.updated_at);
 
     const now = Date.now();
 
