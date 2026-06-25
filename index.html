@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Temperatur Verlauf</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+
+  <style>
+    body {
+      background: #111;
+      color: white;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0 0 20px 0;
+    }
+
+    h1 {
+      margin-top: 20px;
+      display: none;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 18px 0 6px 0;
+    }
+
+    canvas {
+      width: 95% !important;
+      height: 40vh !important;
+      margin: 10px auto 24px auto;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Temperatur Verlauf</h1>
+
+<h2>Letzte 2 Stunden</h2>
+<canvas id="chart2h"></canvas>
+
+<h2>Letzte 48 Stunden</h2>
+<canvas id="chart48h"></canvas>
+
+<script>
+const baseUrl = "https://flpujlogtzczxrcjopfj.supabase.co/rest/v1/temps_local";
+const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHVqbG9ndHpjenhyY2pvcGZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjI4NzU0NiwiZXhwIjoyMDk3ODYzNTQ2fQ.OAxrQi81OjMxuJwpMTukkLmqTf0Uvmhyj3VyXs99zUY";
+const authHeaders = {
+  apikey: apiKey,
+  Authorization: "Bearer " + apiKey
+};
+
+let charts = {};
+
+async function fetchAllData() {
+  const pageSize = 1000;
+  let page = 0;
+  let all = [];
+
+  while (true) {
+    const url = `${baseUrl}?select=*&order=updated_at.desc&limit=${pageSize}&offset=${page * pageSize}`;
+    const res = await fetch(url, { headers: authHeaders });
+
+    if (!res.ok) {
+      throw new Error(`Supabase request failed: ${res.status} ${res.statusText}`);
+    }
+
+    const pageData = await res.json();
+
+    if (!Array.isArray(pageData) || pageData.length === 0) {
+      break;
+    }
+
+    all.push(...pageData);
+
+    if (pageData.length < pageSize) {
+      break;
+    }
+
+    page += 1;
+
+    if (page >= 10) {
+      break;
+    }
+  }
+
+  return all;
+}
+
+function parseLocalTime(row) {
+  if (!row) return NaN;
+
+  const local = String(row.local_time || "").trim();
+
+  if (local) {
+    const parsedLocal = new Date(local);
+    if (!isNaN(parsedLocal.getTime())) {
+      return parsedLocal.getTime();
+    }
+  }
+
+  const timeOnly = local.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeOnly && row.updated_at) {
+    const base = new Date(row.updated_at);
+    if (!isNaN(base.getTime())) {
+      base.setHours(
+        Number(timeOnly[1]),
+        Number(timeOnly[2]),
+        Number(timeOnly[3] || 0),
+        0
+      );
+      return base.getTime();
+    }
+  }
+
+  if (row.updated_at) {
+    const updated = new Date(row.updated_at);
+    if (!isNaN(updated.getTime())) {
+      return updated.getTime();
+    }
+  }
+
+  return NaN;
+}
+
+function prepareRows(rows) {
+  return rows
+    .map(r => ({
+      ...r,
+      ts: parseLocalTime(r)
+    }))
+    .filter(r => !isNaN(r.ts))
+    .sort((a, b) => a.ts - b.ts);
+}
+
+function buildSeries(rows, dialId, minTs, maxTs) {
+  const map = new Map();
+
+  for (const r of rows) {
+    if (r.id !== dialId) continue;
+    if (r.ts < minTs || r.ts > maxTs) continue;
+    if (r.amb == null || r.amb === "") continue;
+
+    map.set(r.ts, {
+      x: r.ts,
+      y: Number(r.amb)
+    });
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.x - b.x);
+}
+
+function drawChart(id, series1, series2, hours) {
+  if (charts[id] && typeof charts[id].destroy === "function") {
+    charts[id].destroy();
+  }
+
+  const allPoints = [...series1, ...series2];
+  if (allPoints.length === 0) {
+    return;
+  }
+
+  const isShort = hours <= 2;
+  const lastTs = Math.max(...allPoints.map(p => p.x));
+  const minTs = lastTs - hours * 60 * 60 * 1000;
+
+  const gapLimitMs = isShort
+    ? 5 * 60 * 1000
+    : 30 * 60 * 1000;
+
+  charts[id] = new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: "aussen",
+          data: series1,
+          parsing: false,
+          borderColor: "red",
+          borderWidth: isShort ? 2 : 1.5,
+          pointRadius: 0,
+          tension: 0,
+          spanGaps: gapLimitMs
+        },
+        {
+          label: "innen",
+          data: series2,
+          parsing: false,
+          borderColor: "cyan",
+          borderWidth: isShort ? 2 : 1.5,
+          pointRadius: 0,
+          tension: 0,
+          spanGaps: gapLimitMs
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      normalized: true,
+      interaction: {
+        mode: "nearest",
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          labels: {
+            color: "white",
+            font: {
+              size: isShort ? 18 : 16
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: "time",
+          min: minTs,
+          max: lastTs,
+          adapters: {
+            date: {
+              zone: "Europe/Zurich",
+              locale: "de-CH"
+            }
+          },
+          time: {
+            unit: "hour",
+            displayFormats: {
+              hour: "HH:mm",
+              day: "dd.LL HH:mm"
+            },
+            tooltipFormat: "dd.LL.yyyy HH:mm:ss"
+          },
+          ticks: {
+            color: "white",
+            autoSkip: true,
+            minRotation: 0,
+            maxRotation: 0,
+            font: {
+              size: isShort ? 20 : 16
+            }
+          },
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          position: "right",
+          ticks: {
+            color: "white",
+            stepSize: 1,
+            font: {
+              size: isShort ? 20 : 16
+            }
+          },
+          grid: {
+            color: "rgba(255,255,255,0.1)",
+            lineWidth: 2
+          }
+        }
+      }
+    }
+  });
+}
+
+async function loadData() {
+  try {
+    const raw = await fetchAllData();
+    const rows = prepareRows(raw);
+
+    if (rows.length === 0) {
+      return;
+    }
+
+    const lastTs = rows[rows.length - 1].ts;
+
+    const min2h = lastTs - 2 * 60 * 60 * 1000;
+    const min48h = lastTs - 48 * 60 * 60 * 1000;
+
+    const d1_2h = buildSeries(rows, "dial1", min2h, lastTs);
+    const d2_2h = buildSeries(rows, "dial2", min2h, lastTs);
+
+    const d1_48h = buildSeries(rows, "dial1", min48h, lastTs);
+    const d2_48h = buildSeries(rows, "dial2", min48h, lastTs);
+
+    drawChart("chart2h", d1_2h, d2_2h, 2);
+    drawChart("chart48h", d1_48h, d2_48h, 48);
+  } catch (e) {
+    console.log("Fehler:", e);
+  }
+}
+
+setInterval(loadData, 30000);
+loadData();
+</script>
+
+</body>
+</html>
